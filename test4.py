@@ -6,9 +6,8 @@ from pymongo import MongoClient
 import pymongo
 import certifi
 from bson import json_util
-from flask import Response
+from bson import ObjectId
 from bson import json_util
-import os
 
 
 
@@ -143,7 +142,6 @@ def upload():
             
             result = mycol.insert_one(MyContact)
             MyData.append(str(result.inserted_id))
-            print(MyContact)
 
         return jsonify({'message': MyData}) 
         
@@ -152,66 +150,6 @@ def upload():
         return render_template('upload.html')
         
     
-@app.route('/contacts/vcard')
-def get_contacts_vcard():
-    try:
-        # retrieve all contacts from the MongoDB collection
-        contacts = list(mycol.find())
-
-        # initialize an empty list to store the vCard data
-        vcard_data = []
-
-        # iterate over each contact and convert it to vCard format
-        for contact in contacts:
-            # extract the relevant fields from the contact object
-            name = contact['name']
-            address = contact['address']
-            organization = contact.get('organization', '')
-            phone = contact.get('phone', '')
-            email = contact.get('email', '')
-
-            # format the contact data as a vCard string
-            vcard_string = f"BEGIN:VCARD\nVERSION:3.0\nFN:{name}\nN:{name};;;;\nORG:{organization}\nADR:;;;;{address}\nTEL:{phone}\nEMAIL:{email}\nEND:VCARD\n"
-
-            # append the vCard string to the list
-            vcard_data.append({'vcard': vcard_string})
-
-        # return the vCard data as a JSON response
-        return jsonify(vcard_data)
-    except Exception as e:
-        # log the error
-        print(f"An error occurred: {str(e)}")
-        # return a 500 error response
-        return Response(status=500)
-
-@app.route('/contacts/vcard/<email>')
-def get_specific_vcard(email):
-    try:
-        # retrieve the contact with the specified email from the MongoDB collection
-        contact = mycol.find_one({'email': email})
-
-        if contact is not None:
-            # extract the relevant fields from the contact object
-            name = contact['name']
-            address = contact['address']
-            organization = contact.get('organization', '')
-            phone = contact.get('phone', '')
-            email = contact.get('email', '')
-
-            # format the contact data as a vCard string
-            vcard_string = f"BEGIN:VCARD\nVERSION:3.0\nFN:{name}\nN:{name};;;;\nORG:{organization}\nADR:;;;;{address}\nTEL:{phone}\nEMAIL:{email}\nEND:VCARD\n"
-
-            # return the vCard data as a response
-            return jsonify({'vcard': vcard_string})
-        else:
-            # return a 404 error response if the contact is not found
-            return Response(status=404)
-    except Exception as e:
-        # log the error
-        print(f"An error occurred: {str(e)}")
-        # return a 500 error response
-        return Response(status=500)   
-
 @app.route('/contacts')
 def get_contacts():
     # clear the contacts list
@@ -226,8 +164,8 @@ def get_contacts():
     # return the contacts as a JSON response
     return jsonify(contacts)
 
-@app.route('/contacts/<email>')
-def get_contact(email):
+@app.route('/contacts/email/<email>')
+def get_contact_by_email(email):
     # retrieve the contact from the MongoDB collection using the email address
     contact = mycol.find_one({'email': email})
 
@@ -237,6 +175,22 @@ def get_contact(email):
         return jsonify(contact)
     else:
         return f"Contact with email {email} does not exist"
+
+
+@app.route('/contacts/id/<string:id>')
+def get_contact_by_id(id):
+    # retrieve the contact from the MongoDB collection using the id
+    contact = mycol.find_one({'_id': ObjectId(id)})
+
+    if contact is not None:
+        # convert the MongoDB document to a JSON-serializable format
+        contact = json.loads(json_util.dumps(contact))
+        return jsonify(contact)
+    else:
+        return f"Contact with id {id} does not exist"
+
+
+
 
 
 '''
@@ -282,4 +236,4 @@ if __name__ == '__main__':
     was imported as a module and not as a script. I.e. the code in this if does
     not run if the file is imported as a module.'''
 
-app.run(debug=True, port=os.getenv("PORT", default=5000))
+    app.run()
